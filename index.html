@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lanzamonedas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .perspective-container {
+            perspective: 1200px;
+        }
+
+        /* Contenedor para el bamboleo (Wobble) en ejes X/Z */
+        #coin-wrapper {
+            width: 200px;
+            height: 200px;
+            transform-style: preserve-3d;
+            transition: transform 3s ease-out;
+        }
+        
+        /* La moneda en sí maneja el giro del resultado (Eje Y) */
+        #coin {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            transition: transform 3s cubic-bezier(0.15, 1, 0.3, 1); /* Bezier modificado para frenado más realista */
+        }
+
+        .face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 10px 15px rgba(0,0,0,0.3);
+            /* Importante: Renderizado nítido */
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .heads {
+            background: linear-gradient(135deg, #ffd700, #ffac33);
+            transform: rotateY(0deg);
+        }
+
+        .tails {
+            background: linear-gradient(135deg, #c0c0c0, #8a8a8a);
+            transform: rotateY(180deg);
+        }
+
+        .face::before {
+            content: '';
+            position: absolute;
+            width: 90%;
+            height: 90%;
+            border: 4px dashed rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+        }
+
+        /* Animación de bamboleo activo */
+        .wobbling {
+            animation: wobble-anim 3s ease-out forwards;
+        }
+
+        @keyframes wobble-anim {
+            0% { transform: rotateX(0deg) rotateZ(0deg) scale(1); }
+            15% { transform: rotateX(60deg) rotateZ(20deg) scale(1.4); } /* Sube (zoom in) */
+            40% { transform: rotateX(-40deg) rotateZ(-20deg) scale(1.4); }
+            60% { transform: rotateX(20deg) rotateZ(10deg) scale(1.2); }
+            80% { transform: rotateX(-10deg) rotateZ(-5deg) scale(1.1); }
+            100% { transform: rotateX(0deg) rotateZ(0deg) scale(1); } /* Aterriza */
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center justify-center font-sans overflow-hidden select-none">
+
+    <header class="absolute top-10 w-full text-center z-10">
+        <h1 id="secret-trigger" class="text-3xl font-bold tracking-widest text-slate-300 uppercase cursor-pointer transition active:text-slate-500">
+            Lanzamonedas
+        </h1>
+        <p class="text-slate-500 text-sm mt-2">Toca la moneda para lanzar</p>
+    </header>
+
+    <main class="perspective-container mt-10">
+        <!-- Wrapper intermedio para separar la animación de lanzamiento del giro de resultado -->
+        <!-- AÑADIDO: cursor-pointer para indicar que es interactivo -->
+        <div id="coin-wrapper" class="cursor-pointer">
+            <div id="coin">
+                <!-- Cara -->
+                <div class="face heads border-4 border-yellow-600">
+                    <div class="text-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 text-yellow-900 drop-shadow-lg mx-auto mb-2" viewBox="0 0 24 24" fill="currentColor">
+                            <path fill-rule="evenodd" d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" clip-rule="evenodd" />
+                        </svg>
+                        <span class="text-2xl font-black text-yellow-900 drop-shadow-md uppercase tracking-wider">Cara</span>
+                    </div>
+                </div>
+                <!-- Cruz -->
+                <div class="face tails border-4 border-gray-600">
+                    <div class="text-center">
+                        <!-- Nuevo icono de 'X' más claro -->
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 text-gray-900 drop-shadow-lg mx-auto mb-2" viewBox="0 0 24 24" fill="currentColor">
+                          <path fill-rule="evenodd" d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z" clip-rule="evenodd" />
+                        </svg>
+                        <span class="text-2xl font-black text-gray-900 drop-shadow-md uppercase tracking-wider">Cruz</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="result-text" class="mt-16 h-8 text-xl font-mono text-cyan-400 font-bold opacity-0 transition-opacity duration-500">
+        ...
+    </div>
+
+    <!-- Contador de lanzamientos -->
+    <div class="mt-8 text-slate-500 font-mono text-sm tracking-widest uppercase">
+        Lanzamientos: <span id="flip-count" class="text-white font-bold text-lg ml-2">0</span>
+    </div>
+
+    <!-- MENÚ SECRETO -->
+    <div id="secret-menu" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 hidden flex-col items-center justify-center">
+        <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-600 w-80 text-center">
+            <h2 class="text-red-500 font-bold text-xl mb-6 tracking-widest border-b border-slate-700 pb-2">CONFIGURACIÓN OCULTA</h2>
+            
+            <p class="text-slate-400 mb-4 text-sm">Elige el resultado del próximo lanzamiento:</p>
+            
+            <div class="space-y-3">
+                <button onclick="setRiggedResult('heads')" class="w-full py-3 bg-yellow-600 hover:bg-yellow-500 rounded font-bold text-black transition">
+                    Forzar CARA
+                </button>
+                <button onclick="setRiggedResult('tails')" class="w-full py-3 bg-gray-500 hover:bg-gray-400 rounded font-bold text-white transition">
+                    Forzar CRUZ
+                </button>
+                <button onclick="setRiggedResult(null)" class="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded font-bold text-white transition">
+                    Aleatorio (Reset)
+                </button>
+            </div>
+
+            <button onclick="toggleSecretMenu()" class="mt-6 text-slate-500 text-xs hover:text-white underline">
+                Cerrar Menú
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const coin = document.getElementById('coin');
+        const coinWrapper = document.getElementById('coin-wrapper');
+        const resultText = document.getElementById('result-text');
+        const secretMenu = document.getElementById('secret-menu');
+        const flipCountDisplay = document.getElementById('flip-count');
+        
+        let isFlipping = false;
+        let currentRotation = 0; 
+        let riggedOutcome = null;
+        let totalFlips = 0;
+
+        // --- LÓGICA DE LANZAMIENTO (Refactorizada en función) ---
+        function launchCoin() {
+            if (isFlipping) return;
+            
+            isFlipping = true;
+            coinWrapper.style.cursor = 'not-allowed'; // Feedback visual
+            resultText.style.opacity = '0';
+            
+            // 1. Resetear animación de wobble
+            coinWrapper.classList.remove('wobbling');
+            void coinWrapper.offsetWidth; 
+            coinWrapper.classList.add('wobbling');
+
+            // 2. Determinar resultado
+            let result;
+            if (riggedOutcome) {
+                result = riggedOutcome;
+                riggedOutcome = null; 
+                console.log("Resultado: TRUCADO -> " + result);
+            } else {
+                const randomBuffer = new Uint32Array(1);
+                window.crypto.getRandomValues(randomBuffer);
+                const isHeads = (randomBuffer[0] % 2 === 0);
+                result = isHeads ? 'heads' : 'tails';
+                console.log(`Crypto Random Value: ${randomBuffer[0]}, Es par? ${isHeads}, Resultado: ${result}`);
+            }
+
+            // 3. Calcular Rotación
+            const randomSpins = Math.floor(Math.random() * 5) + 8; 
+            const degreesToSpin = randomSpins * 360;
+            
+            let nextRotation = currentRotation + degreesToSpin;
+            
+            const currentIsHeads = (currentRotation % 360) === 0;
+            const resultIsHeads = (result === 'heads');
+
+            if (currentIsHeads !== resultIsHeads) {
+                nextRotation += 180;
+            }
+
+            coin.style.transform = `rotateY(${nextRotation}deg)`;
+            currentRotation = nextRotation;
+
+            playRealCoinSound();
+
+            // 4. Finalizar
+            setTimeout(() => {
+                isFlipping = false;
+                coinWrapper.style.cursor = 'pointer'; // Restaurar cursor
+                
+                resultText.innerText = result === 'heads' ? "¡ES CARA!" : "¡ES CRUZ!";
+                resultText.style.opacity = '1';
+
+                // Actualizar contador
+                totalFlips++;
+                flipCountDisplay.innerText = totalFlips;
+                
+                if (navigator.vibrate) navigator.vibrate(50);
+            }, 3000); 
+        }
+
+        // Event Listeners (Solo click en la moneda)
+        coinWrapper.addEventListener('click', launchCoin);
+
+        // --- LÓGICA DEL MENÚ SECRETO ---
+        const trigger = document.getElementById('secret-trigger');
+        let clickCount = 0;
+        let clickTimer;
+
+        trigger.addEventListener('click', (e) => {
+            e.preventDefault(); 
+            clickCount++;
+            
+            if (clickCount === 1) {
+                clickTimer = setTimeout(() => {
+                    clickCount = 0;
+                }, 1000);
+            }
+
+            if (clickCount >= 4) {
+                clearTimeout(clickTimer);
+                clickCount = 0;
+                toggleSecretMenu();
+            }
+        });
+
+        function toggleSecretMenu() {
+            if (secretMenu.classList.contains('hidden')) {
+                secretMenu.classList.remove('hidden');
+                secretMenu.classList.add('flex');
+            } else {
+                secretMenu.classList.add('hidden');
+                secretMenu.classList.remove('flex');
+            }
+        }
+
+        function setRiggedResult(outcome) {
+            riggedOutcome = outcome;
+            toggleSecretMenu();
+            if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
+        }
+
+        // --- SONIDO REALISTA (SÍNTESIS ADITIVA) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playRealCoinSound() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const t = audioCtx.currentTime;
+            
+            // Master Gain para controlar el volumen global
+            const masterGain = audioCtx.createGain();
+            masterGain.gain.setValueAtTime(0.4, t);
+            masterGain.connect(audioCtx.destination);
+
+            // 1. EL IMPACTO INICIAL (THUD)
+            const thudOsc = audioCtx.createOscillator();
+            const thudGain = audioCtx.createGain();
+            
+            thudOsc.frequency.setValueAtTime(120, t);
+            thudOsc.frequency.exponentialRampToValueAtTime(40, t + 0.08); 
+            
+            thudGain.gain.setValueAtTime(0.8, t);
+            thudGain.gain.exponentialRampToValueAtTime(0.01, t + 0.08); 
+            
+            thudOsc.connect(thudGain);
+            thudGain.connect(masterGain);
+            thudOsc.start(t);
+            thudOsc.stop(t + 0.1);
+
+            // 2. EL "PING" METÁLICO (RESONANCIA)
+            const ratios = [1, 2.6, 3.8, 5.2]; 
+            const baseFreq = 2200 + (Math.random() * 100); 
+
+            ratios.forEach((ratio, i) => {
+                const osc = audioCtx.createOscillator();
+                const oscGain = audioCtx.createGain();
+                
+                osc.type = 'sine'; 
+                osc.frequency.setValueAtTime(baseFreq * ratio, t);
+                osc.detune.value = (Math.random() - 0.5) * 50;
+
+                oscGain.gain.setValueAtTime(0, t);
+                oscGain.gain.linearRampToValueAtTime(0.1 / (i + 1), t + 0.01); 
+                const decayTime = 1.0 - (i * 0.15) + (Math.random() * 0.5); 
+                oscGain.gain.exponentialRampToValueAtTime(0.001, t + decayTime);
+
+                osc.connect(oscGain);
+                oscGain.connect(masterGain);
+                
+                osc.start(t);
+                osc.stop(t + 2.0); 
+            });
+        }
+    </script>
+</body>
+</html>
+
+
+
